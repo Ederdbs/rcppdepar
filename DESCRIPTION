@@ -19,8 +19,9 @@ Description: An efficient C++ based implementation of the 'DEoptim'
  an implicit code review which eliminated a few inefficiencies which have
  since been eliminated in 'DEoptim'.
 License: GPL (>= 2)
-Imports: Rcpp
+Imports: Rcpp (>= 1.1.1)
 Suggests: inline, DEoptim, lattice
 LinkingTo: Rcpp, RcppArmadillo
 URL: https://github.com/eddelbuettel/rcppde, https://dirk.eddelbuettel.com/code/rcpp.de.html
 BugReports: https://github.com/eddelbuettel/rcppde/issues
+VignetteBuilder: Rcpp

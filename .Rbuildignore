@@ -16,3 +16,4 @@ scripts
 ^travis_wait_.*\.log$
 ^\.editorconfig$
 ^local
+^vignettes/rnw
