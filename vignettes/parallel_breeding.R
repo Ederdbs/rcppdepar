@@ -37,7 +37,7 @@ demo.ParallelBreeding <- function() {
     cat("# At", format(Sys.time()), "\n")
     cat("# n =", n, " NP =", NP, " itermax =", itermax, "\n")
 
-    threadCounts <- c(1, 2, 8, 16,18)
+    threadCounts <- c(1, 2, 8, 16, 18)
     res <- do.call(rbind, lapply(threadCounts, runWith))
     res$speedup <- res$seconds[1] / res$seconds
 

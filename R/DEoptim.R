@@ -124,8 +124,14 @@ DEoptim <- function(fn, lower, upper, control = DEoptim.control(), ...) {
 
   ## setThreadOptions() is process-wide and used to be left changed on exit,
   ## silently altering the thread count for every other RcppParallel user in
-  ## the session. Set it only when it can matter, and put it back.
-  if (is_raw && ctrl$nthreads > 1) {
+  ## the session. Set it whenever the parallel path is taken, and put it back.
+  ## Note the condition is 'is_raw', NOT 'is_raw && nthreads > 1': a raw
+  ## objective always goes through devol_parallel()/parallelFor (see
+  ## isRawCompiledObjective in src/deoptim.cpp), so leaving this unset for
+  ## nthreads == 1 ran the "serial" case on RcppParallel's default thread count
+  ## (all cores) -- which silently turned every benchmark baseline into a
+  ## fully parallel run and made the reported speedups ~1.
+  if (is_raw) {
     old_threads <- Sys.getenv("RCPP_PARALLEL_NUM_THREADS", unset = NA)
     on.exit(
       if (is.na(old_threads))

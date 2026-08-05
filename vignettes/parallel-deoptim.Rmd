@@ -12,11 +12,10 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 library(RcppDEpar)
 ```
 
-This vignette exercises `RcppDEpar` the way the scripts in `demo/` do
-(`DEoptim.R`, `small.R`, `large.R`, `compiled.R`, `parallel_breeding.R`), but
-trimmed to sizes that build quickly, and with the focus on the feature that
-sets this fork apart from upstream `RcppDE`: the **population-parallel**
-evaluation path (`control$nthreads`).
+This vignette exercises `RcppDEpar` the way `vignettes/parallel_breeding.R`
+does, but trimmed to sizes that build quickly, and with the focus on the
+feature that sets this fork apart from upstream `RcppDE`: the
+**population-parallel** evaluation path (`control$nthreads`).
 
 ## 1. Basic usage
 
@@ -43,7 +42,7 @@ main thread through R's C API) or a **compiled function pointer** wrapped in
 an external pointer (evaluated in C++, with no R-level call overhead). The
 package ships example compiled objectives in `src/exampleFunctions.cpp`,
 exposed through `putFunPtrInXPtr()`/`putFunPtrInXPtrRaw()` (used by
-`demo/compiled.R` and `demo/parallel_breeding.R`).
+`vignettes/parallel_breeding.R`).
 
 ```{r compiled-vs-r}
 Rastrigin <- function(x) sum(x + 2 - 10 * cos(2 * pi * x)) + 20
@@ -80,6 +79,14 @@ must both hold for a `DEoptim()` call to use it:
    on a single worker, since a raw pointer can *only* be evaluated that
    way).
 
+`nthreads` is authoritative in both directions: `DEoptim()` calls
+`RcppParallel::setThreadOptions()` on every raw-objective call, including
+`nthreads = 1`, and restores the previous process-wide setting on exit. That
+matters for benchmarking — without it, `nthreads = 1` would inherit
+`RcppParallel`'s default (every core on the machine), so the "serial"
+baseline would itself be a fully parallel run and every reported speedup
+would collapse to roughly 1.
+
 An R closure with `nthreads > 1` will **not** go parallel — it silently
 runs on the ordinary sequential `devol()` engine, because only the raw
 compiled calling convention is safe to call from worker threads.
@@ -104,8 +111,8 @@ regardless of how many threads run the population loop:
 ```{r reproducible, warning = FALSE}
 ## warning = FALSE: NP is deliberately far below 10 * length(lower) here, so
 ## DEoptim()'s standing advice about population size is expected noise
-n  <- 3000
-NP <- 500
+n  <- 10000
+NP <- 2000
 lower <- rep(0, n); upper <- rep(1, n)
 
 runWith <- function(nthreads) {
@@ -119,30 +126,47 @@ bestvals
 stopifnot(abs(diff(bestvals)) < 1e-8)
 ```
 
-### Benchmark: scaling the genetic-selection objective across 1, 2, 4 and 8 threads
+### Benchmark: scaling the genetic-selection objective across thread counts
 
-Population-parallel evaluation pays off when the *per-individual*
-objective is expensive and the population is large enough to amortize
-`RcppParallel`'s scheduling overhead — the `demo/parallel_breeding.R`
-regime (`n = 100000`, `NP = 20000`) makes that obvious. The problem below
-is larger than the reproducibility check above so that the timings are not
-pure noise, but still small enough to build in a few seconds; it is a
-scaled-down stand-in, not a definitive benchmark.
+Population-parallel evaluation pays off when the *per-individual* objective
+is expensive and the population is large enough to amortize `RcppParallel`'s
+scheduling overhead — the `vignettes/parallel_breeding.R` regime
+(`n = 10000`, `NP = 2000`) makes that obvious. The problem below is larger
+than the reproducibility check above so that the timings are not pure noise,
+but still small enough to build in a few seconds; it is a scaled-down
+stand-in, not a definitive benchmark.
 
 Each configuration is run three times and the **minimum** elapsed time is
 reported, which is the least noise-prone estimator for this kind of
-measurement. Thread counts above the number of available cores are
-dropped, so a smaller machine simply shows fewer rows.
+measurement.
+
+Thread counts above the number of available cores are dropped, so a smaller
+machine simply shows fewer rows. This filter is not cosmetic: asking for more
+workers than there are cores *oversubscribes* the machine — the OS
+time-slices the workers onto the same cores, and since each generation is a
+barrier, the whole population waits for whichever chunk got descheduled. On
+the 18-core development machine, 24 threads measured **slower** than 16
+(speedup 6.5 vs 7.3). Never set `nthreads` above the core count.
+
+`detectCores(logical = FALSE)` (physical cores) is the right ceiling rather
+than the logical count: with hyper-threading, two logical siblings share one
+core's execution units, and this loop is memory- rather than branch-bound, so
+the second sibling adds contention more than throughput.
 
 ```{r benchmark-setup}
-nBench  <- 20000    # candidates per solution vector
-NPBench <- 10000     # population size
+nBench  <- 1000   # candidates per solution vector
+NPBench <- 1000   # population size
 itBench <- 50     # generations
 lowerB <- rep(0, nBench); upperB <- rep(1, nBench)
 
 ## Respect the 2-core limit R CMD check imposes when _R_CHECK_LIMIT_CORES_ is set
-maxCores <- if (nzchar(Sys.getenv("_R_CHECK_LIMIT_CORES_"))) 2L else parallel::detectCores()
-threadCounts <- c(1, 2, 4, 8)
+maxCores <- if (nzchar(Sys.getenv("_R_CHECK_LIMIT_CORES_"))) {
+  2L
+} else {
+  cores <- parallel::detectCores(logical = FALSE)
+  if (is.na(cores)) 1L else cores          # detectCores() returns NA on some platforms
+}
+threadCounts <- c(1, 2, 4, 8, 12, 16, 24)
 threadCounts <- threadCounts[threadCounts <= maxCores]
 threadCounts
 ```
@@ -178,7 +202,7 @@ checked in the previous section, now across the full sweep:
 stopifnot(all(abs(res$bestval - res$bestval[1]) < 1e-8))
 ```
 
-```{r benchmark-plot, fig.width = 6, fig.height = 4, fig.alt = "Speedup relative to one thread against thread count, with the ideal linear-scaling line for reference"}
+```{r benchmark-plot, fig.width = 6, fig.height = 5, fig.alt = "Speedup relative to one thread against thread count, with the ideal linear-scaling line for reference", echo =FALSE}
 plot(res$nthreads, res$speedup, type = "b", pch = 19, log = "x",
      xaxt = "n", ylim = range(0, 1, res$speedup, na.rm = TRUE),
      xlab = "threads", ylab = "speedup vs. 1 thread",
@@ -198,25 +222,50 @@ execution; `efficiency` is that speedup divided by the thread count, so
 1.0 would be perfect linear scaling and anything near 0 means the threads
 are mostly getting in each other's way.
 
-The generation loop is a hard barrier: each generation dispatches the
-whole population through `RcppParallel::parallelFor()` and then joins
-before the next one can start, so there is a fixed cost paid `itermax`
-times regardless of how much work each individual actually represents.
-Here that cost exceeds the per-generation work, and adding threads only
-claws back part of what the dispatch itself costs. (The `RcppParallel`
-TinyThread backend creates and joins worker threads on every
-`parallelFor()` call rather than keeping a pool, which is the leading
-suspect — but the non-monotonic 2 → 8 curve above is not fully explained
-by that alone, so treat it as unconfirmed.)
+On the 18-core development machine this sweep gives 1.88x at 2 threads
+(efficiency 0.94), 3.37x at 4, 5.51x at 8 and 7.29x at 16 — a real win that
+flattens rather than reverses.
 
-The practical guidance is therefore: **measure on your own problem before
-turning threads on.** Parallelism starts to win when per-generation work
-grows — a more expensive objective, a larger `n`, or a larger `NP` —
-because the fixed per-generation dispatch cost stays the same while the
-work it is amortized over grows. Increase `nBench`, `NPBench` or
-`itBench` above, or run
-`demo("parallel_breeding", package = "RcppDEpar")` for a regime sized to
-show it.
+Efficiency falls off with thread count for two reasons, and it is worth
+separating them because only one of them is a property of the algorithm.
+
+**Amdahl, not scheduling overhead.** Part of each `DEoptim()` call is
+irreducibly serial: allocating and zeroing the `D x NP` population matrices,
+the initialization loop in `devol_parallel()` (which evaluates all `NP`
+starting members on the main thread), and transposing the results back to R.
+Sweeping `itermax` on the larger `parallel_breeding.R` problem separates the
+fixed cost from the per-generation cost cleanly:
+
+| `itermax` | 1 thread | 16 threads | speedup |
+|---|---|---|---|
+| 1 | 0.288 s | 0.198 s | 1.42 |
+| 5 | 0.675 s | 0.250 s | 2.79 |
+| 10 | 1.169 s | 0.299 s | 4.65 |
+| 30 | 2.856 s | 0.348 s | 8.09 |
+| 60 | 5.527 s | 0.532 s | 10.47 |
+
+Both series are linear in `itermax` with the *same* intercept, about
+0.195 s — that is the serial fixed cost. The slopes are 0.0888 s/generation
+on one thread against 0.0057 s/generation on sixteen, i.e. the population
+loop itself scales at **15.7x on 16 threads**, near-perfect. The whole-run
+speedup is lower only because the fixed 0.195 s is a growing share of the
+total as the parallel part shrinks; it rises steadily with `itermax` exactly
+as Amdahl's law predicts.
+
+**Heterogeneous cores.** `RcppParallel`'s TinyThread backend partitions the
+population statically and has no work-stealing, so the generation barrier
+waits for the slowest chunk. On a CPU with performance and efficiency cores
+(Apple silicon, Intel P/E hybrids), the chunks landing on efficiency cores
+take several times longer and set the pace for everyone. That is why 18
+threads is no better than 16 on the development machine, and why the last few
+cores are usually not worth requesting.
+
+The practical guidance is therefore: **measure on your own problem, and cap
+`nthreads` at the physical core count.** Parallelism wins more as
+per-generation work grows — a more expensive objective, a larger `n`, or a
+larger `NP` — because the serial fixed cost stays put while the work it is
+amortized over grows. Increase `nBench`, `NPBench` or `itBench` above, or run
+`vignettes/parallel_breeding.R` for a regime sized to show it.
 
 ## 4. Sanity check against base `DEoptim`
 
@@ -263,10 +312,13 @@ not read a small difference here as a bug in either package.
   `devol_parallel()` engine.
 * Results are bit-for-bit reproducible across thread counts because RNG
   streams are seeded per `(generation, individual)`, not per thread.
-* Parallelism is not free and not automatically a win: each generation is
-  a barrier, so a fixed dispatch cost is paid `itermax` times. At the size
-  used here the 1/2/4/8-thread sweep comes out *below* break-even on the
-  development machine. Speedup only arrives once per-generation work
-  (objective cost, `n`, `NP`) is large enough to amortize that — measure
-  before enabling threads, and see `demo/parallel_breeding.R` for a
-  regime sized to show it.
+* The population loop itself scales close to linearly (measured 15.7x on 16
+  threads). Whole-call speedup is lower because each `DEoptim()` call carries
+  a fixed serial cost — matrix allocation, the main-thread initialization
+  loop, transposing results back to R — that does not shrink with threads.
+  Speedup therefore grows with `itermax`, `n` and `NP`; see
+  `vignettes/parallel_breeding.R` for a regime sized to show it.
+* Never set `nthreads` above the physical core count. Oversubscription is a
+  net loss (24 threads on 18 cores measured slower than 16), and because the
+  scheduler partitions statically with no work-stealing, efficiency cores set
+  the pace for the whole generation on hybrid CPUs.
