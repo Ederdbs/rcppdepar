@@ -1,29 +1,64 @@
 
-## RcppDE: Rcpp port of Differential Evolution
+## RcppDEpar: Parallel Rcpp port of Differential Evolution
 
-[![CI](https://github.com/eddelbuettel/rcppde/workflows/ci/badge.svg)](https://github.com/eddelbuettel/rcppde/actions?query=workflow%3Aci)
 [![License](https://img.shields.io/badge/license-GPL%20%28%3E=%202%29-brightgreen.svg?style=flat)](https://www.r-project.org/Licenses/GPL-2)
-[![CRAN](https://www.r-pkg.org/badges/version/RcppDE)](https://cran.r-project.org/package=RcppDE)
-[![r-universe](https://eddelbuettel.r-universe.dev/badges/RcppDE)](https://eddelbuettel.r-universe.dev/RcppDE)
-[![Downloads](https://cranlogs.r-pkg.org/badges/RcppDE?color=brightgreen)](https://www.r-pkg.org/pkg/RcppDE)
-[![Dependencies](https://tinyverse.netlify.app/badge/RcppDE)](https://cran.r-project.org/package=RcppDE)
-[![Last Commit](https://img.shields.io/github/last-commit/eddelbuettel/rcppde)](https://github.com/eddelbuettel/rcppde)
 
 ### About
 
-The package provides global optimization by differential evolution.
+`RcppDEpar` provides global optimization by differential evolution, with a
+C++ implementation of the `DEoptim` algorithm. It is a fork of Dirk
+Eddelbuettel's [RcppDE](https://github.com/eddelbuettel/rcppde) that adds a
+**population-parallel evaluation path**: an entire generation's population
+can be evaluated across multiple threads (via `RcppParallel`) instead of one
+individual at a time, for objectives expensive enough to make that pay off.
 
-It uses an efficient C++ based implementation of the DEoptim
-function which performs global optimization by differential evolution.  Its
-creation was motivated by trying to see if the old approximation "easier,
-shorter, faster: pick any two" could in fact be extended to achieving all
-three goals while moving the code from plain old C to modern C++.  The
-initial version did in fact do so, but a good part of the gain was due to an
-implicit code review which eliminated a few inefficiencies which have since
-been eliminated in DEoptim.
+The parallel path is opt-in and requires two things:
+
+1. A thread-safe compiled objective, created with the internal
+   `putFunPtrInXPtrRaw()` (a raw C++ function pointer, not an R closure or
+   an ordinary `putFunPtrInXPtr()` pointer).
+2. `control$nthreads > 1` in `DEoptim.control()`.
+
+Everything else — plain R functions, `DEoptim.control()` options, results
+format — behaves exactly like upstream `RcppDE`/`DEoptim`, and runs on the
+same sequential engine when the conditions above aren't met.
+
+See `vignette("parallel-deoptim", package = "RcppDEpar")` for a worked
+example of the parallel path, including a reproducibility check (same
+result regardless of thread count) and a speedup benchmark. The `demo/`
+directory also has runnable scripts, including `parallel_breeding.R` for a
+larger-scale parallel benchmark.
+
+### Installation
+
+```r
+# install.packages("remotes")
+remotes::install_github("Ederdbs/rcppdepar")
+```
+
+### Usage
+
+```r
+library(RcppDEpar)
+
+Rosenbrock <- function(x) 100 * (x[2] - x[1]^2)^2 + (1 - x[1])^2
+fit <- DEoptim(Rosenbrock, lower = rep(-10, 2), upper = rep(10, 2))
+fit$optim$bestmem
+```
+
+To use the parallel path, pass a thread-safe compiled objective (an
+external pointer from `putFunPtrInXPtrRaw()`, not a plain R closure) and
+set `nthreads` in `DEoptim.control()`:
+
+```r
+xptr <- RcppDEpar:::putFunPtrInXPtrRaw("breedingPenaltyRaw")  # example objective, src/exampleFunctions.cpp
+fit <- DEoptim(xptr, lower = rep(0, 1000), upper = rep(1, 1000),
+               control = DEoptim.control(NP = 200, nthreads = 4))
+fit$optim$bestval
+```
 
 ## Author
 
-Dirk Eddelbuettel extending DEoptim by David Ardia, Katharine Mullen, Brian
-Peterson and Joshua Ulrich, which itself is based on DE-Engine by Rainer
-Storn.
+Eder David Borges da Silva, forking `RcppDE` by Dirk Eddelbuettel, which itself extends
+`DEoptim` by David Ardia, Katharine Mullen, Brian Peterson and Joshua
+Ulrich, based on DE-Engine by Rainer Storn.

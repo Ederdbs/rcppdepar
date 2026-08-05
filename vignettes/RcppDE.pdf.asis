@@ -1,5 +1,0 @@
-%\VignetteIndexEntry{From DEoptim to RcppDE: A case study in porting from C to C++ using Rcpp and RcppArmadillo}
-%\VignetteKeywords{Rcpp,RcppArmadillo,DEoption,differential evolution,optimisation}
-%\VignettePackage{RcppDE}
-%\VignetteEncoding{UTF-8}
-%\VignetteEngine{Rcpp::asis}

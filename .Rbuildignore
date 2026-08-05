@@ -17,3 +17,7 @@ scripts
 ^\.editorconfig$
 ^local
 ^vignettes/rnw
+graphify-out*
+.claude*
+^doc$
+^Meta$

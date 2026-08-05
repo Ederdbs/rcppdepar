@@ -11,7 +11,7 @@ DEoptim.control(VTR = -Inf, strategy = 2, bs = FALSE, NP = 50,
    itermax = 200, CR = 0.5, F = 0.8, trace = TRUE,
    initialpop = NULL, storepopfrom = itermax + 1,
    storepopfreq = 1, p = 0.2, c = 0, reltol = sqrt(.Machine$double.eps),
-   steptol = itermax)
+   steptol = itermax, nthreads = 1)
 }
 \arguments{
    \item{VTR}{the value to be reached. The optimization process
@@ -37,7 +37,9 @@ DEoptim.control(VTR = -Inf, strategy = 2, bs = FALSE, NP = 50,
       values, and the best \code{NP} vectors will proceed into the next
       generation (best of parent and child selection). Default is
     \code{FALSE}.}
-    \item{NP}{number of population members. Defaults to \code{50}.  For
+    \item{NP}{number of population members. Defaults to \code{50}.  Must be
+      at least \code{6}, since the mutation step draws 5 distinct population
+      indices; smaller values are replaced by the default with a warning. For
       many problems it is best to set
       \code{NP} to be at least 10 times the length
       of the parameter vector.  }
@@ -59,7 +61,8 @@ DEoptim.control(VTR = -Inf, strategy = 2, bs = FALSE, NP = 50,
       \code{itermax + 1}, i.e., no intermediate population is stored.}
     \item{storepopfreq}{the frequency with which populations are stored.
       Default to \code{1}, i.e., every intermediate population
-      is stored.}
+      is stored. Must be at least \code{1}; smaller values are replaced by
+      the default with a warning.}
     \item{p}{when \code{strategy = 6}, the top (100 * p)\% best
       solutions are used in the mutation. \code{p} must be defined in
       (0,1].}
@@ -71,6 +74,15 @@ DEoptim.control(VTR = -Inf, strategy = 2, bs = FALSE, NP = 50,
         reltol)} after \code{steptol} steps. Defaults to
       \code{sqrt(.Machine$double.eps)}, typically about \code{1e-8}.}
     \item{steptol}{see \code{reltol}. Defaults to \code{itermax}.}
+    \item{nthreads}{number of threads used to evaluate the population within
+      each generation in parallel, via \pkg{RcppParallel}. Defaults to
+      \code{1} (sequential, the previous behavior). Only takes effect when
+      \code{fn} is a thread-safe compiled objective created with
+      \code{RcppDEpar:::putFunPtrInXPtrRaw()} (a raw \code{double*}/length
+      signature, unlike the R-callback-compatible
+      \code{RcppDEpar:::putFunPtrInXPtr()}); ordinary R functions and objectives
+      registered with \code{putFunPtrInXPtr()} always run sequentially,
+      since R's C API is not thread-safe.}
   }
 \value{
   The default value of \code{control} is the return value of

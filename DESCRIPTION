@@ -1,27 +1,19 @@
-Package: RcppDE
-Version: 0.1.9
-Date: 2026-03-10
-Title: Global Optimization by Differential Evolution in C++
-Authors@R: c(person("Dirk", "Eddelbuettel", role = c("aut", "cre"), email = "edd@debian.org",
-                    comment = c(ORCID = "0000-0001-6419-907X")),
-             person("David", "Ardia", role = "aut", comment = "Author of DEoptim"),
-             person("Katharine", "Mullen", role = "aut", comment = "Author of DEoptim"),
-             person("Brian", "Peterson", role = "aut", comment = "Author of DEoptim"),
-             person("Joshua", "Ulrich", role = "aut", comment = "Author of DEoptim"),
-             person("Kris", "Boudt", role = "ctb", comment = "Contributor to DEoptim"),
-             person("Rainer", "Storn", role = "aut", comment = "Principal author of DE-Engine"))
-Description: An efficient C++ based implementation of the 'DEoptim'
- function which performs global optimization by differential evolution.
- Its creation was motivated by trying to see if the old approximation "easier,
- shorter, faster: pick any two" could in fact be extended to achieving all
- three goals while moving the code from plain old C to modern C++.  The
- initial version did in fact do so, but a good part of the gain was due to
- an implicit code review which eliminated a few inefficiencies which have
- since been eliminated in 'DEoptim'.
+Package: RcppDEpar
+Version: 0.1.0
+Date: 2026-07-05
+Title: Parallel Global Optimization by Differential Evolution in C++
+Authors@R: person("Eder", "David Borges da Silva", role = c("aut", "cre"),
+                   email = "ederdbs@gmail.com",
+                   comment = c(ORCID = "0000-0001-7121-0759"))
+Description: An efficient C++ implementation of the 'DEoptim' algorithm
+ which performs global optimization by differential evolution, forked
+ from 'RcppDE' to add a population-parallel evaluation path for
+ thread-safe compiled objectives.
 License: GPL (>= 2)
-Imports: Rcpp (>= 1.1.1)
-Suggests: inline, DEoptim, lattice
-LinkingTo: Rcpp, RcppArmadillo
-URL: https://github.com/eddelbuettel/rcppde, https://dirk.eddelbuettel.com/code/rcpp.de.html
-BugReports: https://github.com/eddelbuettel/rcppde/issues
-VignetteBuilder: Rcpp
+Imports: Rcpp (>= 1.1.1), RcppParallel
+Suggests: DEoptim, knitr, rmarkdown, testthat (>= 3.0.0)
+Config/testthat/edition: 3
+LinkingTo: Rcpp, RcppArmadillo, RcppParallel
+URL: https://github.com/Ederdbs/rcppdepar
+BugReports: https://github.com/Ederdbs/rcppdepar/issues
+VignetteBuilder: knitr

@@ -1,4 +1,4 @@
-useDynLib("RcppDE", .registration=TRUE)
+useDynLib("RcppDEpar", .registration=TRUE)
 export("DEoptim", "DEoptim.control")
 S3method("plot", "DEoptim")
 S3method("summary", "DEoptim")

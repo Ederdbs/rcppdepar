@@ -8,6 +8,8 @@
 #define Rcpp_DE_evaluate_h_
 
 #include <Rcpp.h>
+#include <atomic>
+#include <cstdint>
 
 namespace Rcpp {
     namespace DE {
@@ -15,10 +17,16 @@ namespace Rcpp {
         class EvalBase {
         public:
             EvalBase() : neval(0) {};
+            virtual ~EvalBase() {}
             virtual double eval(NumericVector par) = 0;
-            unsigned long getNbEvals() { return neval; }
+            // uint64_t, not long: long is 32-bit on Win64 (LLP64) and 64-bit
+            // elsewhere, which would overflow at ~2.1e9 evaluations on Windows
+            // only and make the wrapped R type platform-dependent
+            uint64_t getNbEvals() { return neval.load(std::memory_order_relaxed); }
         protected:
-            unsigned long int neval;
+            // atomic: EvalCompiledRaw::evalRaw() is called concurrently from
+            // RcppParallel worker threads when nthreads > 1
+            std::atomic<uint64_t> neval;
         };
 
         class EvalStandard : public EvalBase {
@@ -60,6 +68,34 @@ namespace Rcpp {
         private:
             funcPtr funptr;
             SEXP env;
+        };
+
+        // Thread-safe objective: takes a raw double* + length instead of an
+        // Rcpp::NumericVector, so it never touches R's (non-thread-safe)
+        // SEXP allocator. This is the only objective type that may be called
+        // from RcppParallel worker threads (see devol_parallel in devol.cpp).
+        // Register such a function with putFunPtrInXPtrRaw()-style helpers.
+        typedef double (*rawFuncPtr)(const double *, int);
+
+        class EvalCompiledRaw : public EvalBase {
+        public:
+            EvalCompiledRaw(SEXP xps) {
+                Rcpp::XPtr<rawFuncPtr> xptr(xps);
+                funptr = *(xptr);
+            }
+            // main-thread entry point (keeps EvalBase interface usable when
+            // nthreads == 1, e.g. from the existing serial devol() loop)
+            double eval(NumericVector par) {
+                return evalRaw(par.begin(), par.size());
+            }
+            // thread-safe entry point: no R API calls, safe to call
+            // concurrently from RcppParallel worker threads
+            double evalRaw(const double *par, int n) {
+                neval.fetch_add(1, std::memory_order_relaxed);
+                return funptr(par, n);
+            }
+        private:
+            rawFuncPtr funptr;
         };
 
     }

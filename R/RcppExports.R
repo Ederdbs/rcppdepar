@@ -2,14 +2,18 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 armadilloVersion <- function() {
-    .Call(`_RcppDE_armadilloVersion`)
+    .Call(`_RcppDEpar_armadilloVersion`)
 }
 
 DEoptim_impl <- function(minbound, maxbound, fnS, control, rhoS) {
-    .Call(`_RcppDE_DEoptim_impl`, minbound, maxbound, fnS, control, rhoS)
+    .Call(`_RcppDEpar_DEoptim_impl`, minbound, maxbound, fnS, control, rhoS)
 }
 
 putFunPtrInXPtr <- function(fstr) {
-    .Call(`_RcppDE_putFunPtrInXPtr`, fstr)
+    .Call(`_RcppDEpar_putFunPtrInXPtr`, fstr)
+}
+
+putFunPtrInXPtrRaw <- function(fstr, throw_after = 0L) {
+    .Call(`_RcppDEpar_putFunPtrInXPtrRaw`, fstr, throw_after)
 }
 

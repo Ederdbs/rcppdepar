@@ -13,7 +13,7 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 
 // armadilloVersion
 Rcpp::List armadilloVersion();
-RcppExport SEXP _RcppDE_armadilloVersion() {
+RcppExport SEXP _RcppDEpar_armadilloVersion() {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -23,7 +23,7 @@ END_RCPP
 }
 // DEoptim_impl
 Rcpp::List DEoptim_impl(const arma::colvec& minbound, const arma::colvec& maxbound, SEXP fnS, const Rcpp::List& control, SEXP rhoS);
-RcppExport SEXP _RcppDE_DEoptim_impl(SEXP minboundSEXP, SEXP maxboundSEXP, SEXP fnSSEXP, SEXP controlSEXP, SEXP rhoSSEXP) {
+RcppExport SEXP _RcppDEpar_DEoptim_impl(SEXP minboundSEXP, SEXP maxboundSEXP, SEXP fnSSEXP, SEXP controlSEXP, SEXP rhoSSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -38,7 +38,7 @@ END_RCPP
 }
 // putFunPtrInXPtr
 SEXP putFunPtrInXPtr(const std::string& fstr);
-RcppExport SEXP _RcppDE_putFunPtrInXPtr(SEXP fstrSEXP) {
+RcppExport SEXP _RcppDEpar_putFunPtrInXPtr(SEXP fstrSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -47,15 +47,28 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// putFunPtrInXPtrRaw
+SEXP putFunPtrInXPtrRaw(const std::string& fstr, long throw_after);
+RcppExport SEXP _RcppDEpar_putFunPtrInXPtrRaw(SEXP fstrSEXP, SEXP throw_afterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::string& >::type fstr(fstrSEXP);
+    Rcpp::traits::input_parameter< long >::type throw_after(throw_afterSEXP);
+    rcpp_result_gen = Rcpp::wrap(putFunPtrInXPtrRaw(fstr, throw_after));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_RcppDE_armadilloVersion", (DL_FUNC) &_RcppDE_armadilloVersion, 0},
-    {"_RcppDE_DEoptim_impl", (DL_FUNC) &_RcppDE_DEoptim_impl, 5},
-    {"_RcppDE_putFunPtrInXPtr", (DL_FUNC) &_RcppDE_putFunPtrInXPtr, 1},
+    {"_RcppDEpar_armadilloVersion", (DL_FUNC) &_RcppDEpar_armadilloVersion, 0},
+    {"_RcppDEpar_DEoptim_impl", (DL_FUNC) &_RcppDEpar_DEoptim_impl, 5},
+    {"_RcppDEpar_putFunPtrInXPtr", (DL_FUNC) &_RcppDEpar_putFunPtrInXPtr, 1},
+    {"_RcppDEpar_putFunPtrInXPtrRaw", (DL_FUNC) &_RcppDEpar_putFunPtrInXPtrRaw, 2},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_RcppDE(DllInfo *dll) {
+RcppExport void R_init_RcppDEpar(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }

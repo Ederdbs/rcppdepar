@@ -6,3 +6,6 @@ src/*.so
 src/*.dll
 local/
 scripts/
+graphify-out/*
+/doc/
+/Meta/
